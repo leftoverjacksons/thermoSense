@@ -3,6 +3,14 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from config import COLORS
 
+def get_heater_state_text(state):
+    states = {
+        0: "HEATING",
+        1: "COOLING",
+        2: "STABILIZING"
+    }
+    return states.get(state, "UNKNOWN")
+
 def register_callbacks(app, monitor):
     @app.callback(
         Output('live-graph', 'figure'),
@@ -12,33 +20,16 @@ def register_callbacks(app, monitor):
         monitor.read_serial()
         
         fig = make_subplots(
-            rows=2, 
-            cols=1,
+            rows=1, 
+            cols=2,
             subplot_titles=(
-                '<b>Voltage Reading</b>',
-                '<b>Pressure Reading</b>'
+                '<b>Pressure Reading</b>',
+                '<b>Temperature Reading</b>'
             ),
-            vertical_spacing=0.15
+            horizontal_spacing=0.1
         )
         
-        # Add voltage trace
-        fig.add_trace(
-            go.Scatter(
-                y=list(monitor.voltage_data),
-                mode='lines',
-                name='Voltage',
-                line=dict(
-                    color=COLORS['voltage'],
-                    width=3,
-                    shape='spline'
-                ),
-                fill='tozeroy',
-                fillcolor=f'rgba(0, 255, 0, 0.1)'
-            ),
-            row=1, col=1
-        )
-        
-        # Add pressure trace
+        # Add pressure trace (left plot)
         fig.add_trace(
             go.Scatter(
                 y=list(monitor.pressure_data),
@@ -52,13 +43,30 @@ def register_callbacks(app, monitor):
                 fill='tozeroy',
                 fillcolor=f'rgba(255, 68, 68, 0.1)'
             ),
-            row=2, col=1
+            row=1, col=1
+        )
+        
+        # Add temperature trace (right plot)
+        fig.add_trace(
+            go.Scatter(
+                y=list(monitor.temperature_data),
+                mode='lines',
+                name='Temperature',
+                line=dict(
+                    color=COLORS['temperature'],
+                    width=3,
+                    shape='spline'
+                ),
+                fill='tozeroy',
+                fillcolor=f'rgba(66, 135, 245, 0.1)'
+            ),
+            row=1, col=2
         )
         
         # Update layout
         fig.update_layout(
-            height=800,
-            showlegend=True,
+            height=300,
+            showlegend=False,
             paper_bgcolor=COLORS['paper'],
             plot_bgcolor=COLORS['background'],
             font=dict(color=COLORS['text']),
@@ -83,12 +91,16 @@ def register_callbacks(app, monitor):
         )
         
         # Set dynamic ranges
-        voltage_range = [0, max(5.0, monitor.max_voltage * 1.1)]
         pressure_range = [0, max(200.0, monitor.max_pressure * 1.1)]
+        temp_range = [
+            min(0.0, monitor.min_temperature * 0.9),
+            max(50.0, monitor.max_temperature * 1.1)
+        ]
         
+        # Update y-axes
         fig.update_yaxes(
-            title_text='Voltage (V)',
-            range=voltage_range,
+            title_text='Pressure (PSI)',
+            range=pressure_range,
             row=1, col=1,
             showgrid=True,
             gridwidth=1,
@@ -100,9 +112,9 @@ def register_callbacks(app, monitor):
         )
         
         fig.update_yaxes(
-            title_text='Pressure (PSI)',
-            range=pressure_range,
-            row=2, col=1,
+            title_text='Temperature (°C)',
+            range=temp_range,
+            row=1, col=2,
             showgrid=True,
             gridwidth=1,
             gridcolor=COLORS['grid'],
@@ -112,29 +124,29 @@ def register_callbacks(app, monitor):
             linecolor=COLORS['grid']
         )
         
-        # Add annotations
-        if monitor.voltage_data and monitor.pressure_data:
-            latest_voltage = monitor.voltage_data[-1]
+        # Add annotations for current and max values
+        if monitor.pressure_data and monitor.temperature_data:
             latest_pressure = monitor.pressure_data[-1]
-            
-            fig.add_annotation(
-                text=f"<b>Current: {latest_voltage:.3f}V</b><br>Max: {monitor.max_voltage:.3f}V",
-                xref="paper", yref="paper",
-                x=1.02, y=0.5,
-                xanchor="left",
-                font=dict(size=16, color=COLORS['voltage']),
-                showarrow=False,
-                row=1, col=1
-            )
+            latest_temp = monitor.temperature_data[-1]
+            latest_heater_state = monitor.heater_states[-1] if monitor.heater_states else None
             
             fig.add_annotation(
                 text=f"<b>Current: {latest_pressure:.1f}PSI</b><br>Max: {monitor.max_pressure:.1f}PSI",
                 xref="paper", yref="paper",
-                x=1.02, y=0.0,
+                x=0.02, y=0.95,
                 xanchor="left",
                 font=dict(size=16, color=COLORS['pressure']),
                 showarrow=False,
-                row=2, col=1
+            )
+            
+            heater_state_text = get_heater_state_text(latest_heater_state) if latest_heater_state is not None else ""
+            fig.add_annotation(
+                text=f"<b>Current: {latest_temp:.1f}°C</b><br>Max: {monitor.max_temperature:.1f}°C<br>State: {heater_state_text}",
+                xref="paper", yref="paper",
+                x=0.52, y=0.95,
+                xanchor="left",
+                font=dict(size=16, color=COLORS['temperature']),
+                showarrow=False,
             )
         
         return fig

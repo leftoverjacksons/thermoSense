@@ -5,7 +5,8 @@ from callbacks import register_callbacks
 
 def main():
     app = dash.Dash(__name__, suppress_callback_exceptions=True)
-    monitor = PressureMonitor(window_size=100)
+    # Increase window size to 3000 samples (5 minutes of data)
+    monitor = PressureMonitor(window_size=3000)  
     
     app.layout = create_layout()
     register_callbacks(app, monitor)
