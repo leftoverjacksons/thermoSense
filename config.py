@@ -5,6 +5,7 @@ COLORS = {
     'voltage': '#00ff00',
     'pressure': '#ff4444',
     'temperature': '#4287f5',  # Blue color for temperature
+    'ph': '#9370db',  # Purple color for pH (add this line)
     'paper': '#2d2d2d'
 }
 

@@ -17,7 +17,8 @@ class PressureMonitor:
             self.voltage_data = deque(maxlen=window_size)
             self.pressure_data = deque(maxlen=window_size)
             self.temperature_data = deque(maxlen=window_size)
-            self.heater_states = deque(maxlen=window_size)  # New: track heater states
+            self.ph_data = deque(maxlen=window_size)  # Add this line
+            self.heater_states = deque(maxlen=window_size)
             self.timestamps = deque(maxlen=window_size)
             self.window_size = window_size
             self.ser = None
@@ -25,6 +26,8 @@ class PressureMonitor:
             self.max_pressure = 0.0
             self.max_temperature = 0.0
             self.min_temperature = 100.0
+            self.max_ph = 14.0  # Add this line
+            self.min_ph = 0.0   # Add this line
             self.connection_attempts = 0
             self.last_connection_time = 0
             self.connect_serial()
@@ -121,28 +124,35 @@ class PressureMonitor:
                         parts = line.strip().split(':')
                         print(f"Split parts: {parts}")
                         
-                        if len(parts) >= 5:  # Now expecting 5 parts with heater state
-                            _, voltage_str, pressure_str, temp_str, heater_state = parts
-                            print(f"Parsing - Voltage: {voltage_str}, Pressure: {pressure_str}, "
-                                  f"Temp: {temp_str}, Heater: {heater_state}")
-                            
-                            voltage = float(voltage_str)
-                            pressure = float(pressure_str)
-                            temperature = float(temp_str)
-                            heater_state = int(heater_state)
-                            
-                            self.max_voltage = max(self.max_voltage, voltage)
-                            self.max_pressure = max(self.max_pressure, pressure)
-                            self.max_temperature = max(self.max_temperature, temperature)
-                            self.min_temperature = min(self.min_temperature, temperature)
-                            
-                            self.voltage_data.append(voltage)
-                            self.pressure_data.append(pressure)
-                            self.temperature_data.append(temperature)
-                            self.heater_states.append(heater_state)
-                            self.timestamps.append(time.time())
-                            print(f"Successfully added data point - V:{voltage:.3f}, "
-                                  f"P:{pressure:.2f}, T:{temperature:.2f}, H:{heater_state}")
+                        if len(parts) >= 6:  # Expecting 6 parts with pH and heater state
+                            try:
+                                _, voltage_str, pressure_str, temp_str, ph_str, heater_state = parts[:6]
+                                print(f"Parsing - Voltage: {voltage_str}, Pressure: {pressure_str}, "
+                                    f"Temp: {temp_str}, pH: {ph_str}, Heater: {heater_state}")
+                                
+                                voltage = float(voltage_str)
+                                pressure = float(pressure_str)
+                                temperature = float(temp_str)
+                                ph = float(ph_str)
+                                heater_state = int(heater_state)
+                                
+                                self.max_voltage = max(self.max_voltage, voltage)
+                                self.max_pressure = max(self.max_pressure, pressure)
+                                self.max_temperature = max(self.max_temperature, temperature)
+                                self.min_temperature = min(self.min_temperature, temperature)
+                                self.max_ph = max(self.max_ph, ph)
+                                self.min_ph = min(self.min_ph, ph)
+                                
+                                self.voltage_data.append(voltage)
+                                self.pressure_data.append(pressure)
+                                self.temperature_data.append(temperature)
+                                self.ph_data.append(ph)
+                                self.heater_states.append(heater_state)
+                                self.timestamps.append(time.time())
+                                print(f"Successfully added data point - V:{voltage:.3f}, "
+                                    f"P:{pressure:.2f}, T:{temperature:.2f}, pH:{ph:.2f}, H:{heater_state}")
+                            except ValueError as e:
+                                print(f"Error parsing values: {e}")
                             
                         else:
                             print(f"Warning: Unexpected number of parts in data line ({len(parts)})")
